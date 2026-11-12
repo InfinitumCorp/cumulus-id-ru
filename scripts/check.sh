@@ -12,7 +12,7 @@ check "home page" 200 "$BASE/"
 check "OIDC discovery" 200 "$BASE/.well-known/openid-configuration"
 check "HTTP redirects to HTTPS" 301 "${BASE/https:/http:}/"
 issuer=$(curl -s --max-time 20 "$BASE/.well-known/openid-configuration" | sed -n 's/.*"issuer" *: *"\([^"]*\)".*/\1/p')
-if [ "$issuer" = "$BASE" ]; then echo "ok   issuer is $issuer"; else echo "FAIL issuer: '$issuer'"; fail=1; fi
+if [ "$issuer" = "$BASE/realms/cumulus" ]; then echo "ok   issuer is $issuer"; else echo "FAIL issuer: '$issuer'"; fail=1; fi
 cookie=$(curl -s -D - -o /dev/null --max-time 20 "$BASE/" | grep -i '^set-cookie' | grep -io 'domain=[^;]*' | head -1)
 case "$cookie" in
   ""|*ru-id.cumuluscloud.app*) echo "ok   cookie scope ${cookie:-host-only}" ;;

@@ -15,6 +15,11 @@ Not to be confused with `ru.id.cumuluscloud.app`, which is a mirror that forward
 - `scripts/setup.sh`: run on the server (`ssh cumulus-id-russia 'bash -s' < scripts/setup.sh`). Safe to re-run; bump `SHA` to upgrade.
 - `scripts/check.sh`: checks the live site (home, OIDC discovery, issuer, HTTPS redirect, cookie scope).
 
+## Status
+
+- 2026-11-12: running on the server (systemd `cumulus-id`, port 3000 behind nginx). Issuer `https://ru-id.cumuluscloud.app/realms/cumulus`, signing key id `Vkewk4VI1-4iJnYD`. Sign-in: passkeys. AI: not connected.
+- HTTPS waits for DNS: `A ru-id.cumuluscloud.app → 46.21.246.216` (DNS only) in the Cloudflare zone `cumuluscloud.app`, then re-run `setup.sh` to get the certificate.
+
 ## Still to do
 
 - Apps must accept this issuer for Russian accounts (sign-in routing by account residency), in infinitum-nexus and each app.
