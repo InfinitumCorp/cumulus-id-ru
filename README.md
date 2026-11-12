@@ -23,5 +23,8 @@ Not to be confused with `ru.id.cumuluscloud.app`, which is a mirror that forward
 
 ## Still to do
 
-- Apps must accept this issuer for Russian accounts (sign-in routing by account residency), in infinitum-nexus and each app.
-- Each app that signs in here must be registered as a client on this issuer.
+- Clients come from `packages/cid/src/id-clients.ts` in infinitum-nexus (shared with id.cumuluscloud.app). Fabric Russia's origin was missing: fixed in [InfinitumCorp/infinitum-nexus#181](https://github.com/InfinitumCorp/infinitum-nexus/pull/181). After it is merged, bump `SHA` here and re-run `setup.sh`.
+- Point each Russian copy at this issuer (needs SSH to its Yandex server):
+  - Fabric Russia: `issuer: "https://ru-id.cumuluscloud.app/realms/cumulus"` in `/opt/fabric/data/homeserver.yaml` (InfinitumCorp/fabric-ru `server/homeserver.cumulus-id.yaml`), restart Synapse.
+  - Conjure Russia: `CID_ISSUER=https://ru-id.cumuluscloud.app` in `/etc/conjure/env`, restart.
+- Existing users of those servers signed in with US Cumulus IDs; switching the issuer gives them new ids (new `sub`), so switch before launch or migrate their accounts.
