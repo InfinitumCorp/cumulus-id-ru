@@ -1,0 +1,21 @@
+# Cumulus://ID Russia
+
+Cumulus://ID for Russian accounts, at **https://ru-id.cumuluscloud.app**, on the Yandex Cloud server `cumulus-id-russia` (ru-central1-a).
+
+- A separate issuer: Russian accounts, passkeys and sessions are stored only on this server. Its sessions are scoped to `ru-id.cumuluscloud.app`, so they never mix with `id.cumuluscloud.app`.
+- Runs `apps/spectre` from [InfinitumCorp/infinitum-nexus](https://github.com/InfinitumCorp/infinitum-nexus) at a pinned commit (`SHA` in `scripts/setup.sh`), on Node, behind nginx with Let's Encrypt.
+- Nothing leaves Russia: no Claude, no social sign-in, no outside mail or SMS providers. `setup.sh` refuses to run if any of their keys are set.
+- The OpenID Connect signing key is generated on the server (`/etc/cumulus-id/oidc-signing-key.jwk`, root-only). It is never printed, copied or committed.
+- Data: `/var/lib/cumulus-id`, covered by the daily Yandex disk snapshots (`daily-data-servers`, 7 kept).
+
+Not to be confused with `ru.id.cumuluscloud.app`, which is a mirror that forwards to the US issuer.
+
+## Scripts
+
+- `scripts/setup.sh`: run on the server (`ssh cumulus-id-russia 'bash -s' < scripts/setup.sh`). Safe to re-run; bump `SHA` to upgrade.
+- `scripts/check.sh`: checks the live site (home, OIDC discovery, issuer, HTTPS redirect, cookie scope).
+
+## Still to do
+
+- Apps must accept this issuer for Russian accounts (sign-in routing by account residency), in infinitum-nexus and each app.
+- Each app that signs in here must be registered as a client on this issuer.
