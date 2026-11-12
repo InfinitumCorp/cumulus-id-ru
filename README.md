@@ -18,7 +18,8 @@ Not to be confused with `ru.id.cumuluscloud.app`, which is a mirror that forward
 ## Status
 
 - 2026-11-12: running on the server (systemd `cumulus-id`, port 3000 behind nginx). Issuer `https://ru-id.cumuluscloud.app/realms/cumulus`, signing key id `Vkewk4VI1-4iJnYD`. Sign-in: passkeys. AI: not connected.
-- HTTPS waits for DNS: `A ru-id.cumuluscloud.app → 46.21.246.216` (DNS only) in the Cloudflare zone `cumuluscloud.app`, then re-run `setup.sh` to get the certificate.
+- 2026-11-12: live at https://ru-id.cumuluscloud.app. DNS `A ru-id.cumuluscloud.app → 46.21.246.216` (DNS only, Cloudflare). Let's Encrypt certificate valid to 2027-02-10. `check.sh` passes from GitHub's network.
+- The public IP is dynamic: make it static before launch, or the DNS record breaks if the server is stopped.
 
 ## Still to do
 
