@@ -7,6 +7,7 @@ Cumulus://ID for Russian accounts, at **https://ru-id.cumuluscloud.app**, on the
 - Nothing leaves Russia: no Claude, no social sign-in, no outside mail or SMS providers. `setup.sh` refuses to run if any of their keys are set.
 - The OpenID Connect signing key is generated on the server (`/etc/cumulus-id/oidc-signing-key.jwk`, root-only). It is never printed, copied or committed.
 - Data: `/var/lib/cumulus-id`, covered by the daily Yandex disk snapshots (`daily-data-servers`, 7 kept).
+- Accounts, passkeys and sessions: Postgres on this server (`cumulus_id` database), reached over the local socket as the service user, so there is no database password (`CUMULUS_STORE=postgres`). The first start copies `cid.json` in and checks every row; `cid.json` stays as the rollback copy (`CUMULUS_STORE=document` in `/etc/cumulus-id/env`). A nightly `pg_dump` goes to `/var/lib/cumulus-id/backups` (7 kept).
 
 Not to be confused with `ru.id.cumuluscloud.app`, which is a mirror that forwards to the US issuer.
 
