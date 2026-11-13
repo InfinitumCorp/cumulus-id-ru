@@ -5,7 +5,7 @@
 # Re-runnable; run again to upgrade (bump SHA).
 set -euo pipefail
 # infinitum-nexus commit to run (apps/spectre, the code behind id.cumuluscloud.app).
-SHA=2015ab03e86b91dd4ef80c3d5a82d5b8370fb365
+SHA=90f6bdb24c980a7edc96e3cbd3be08848c257c06
 HOST=ru-id.cumuluscloud.app
 MYIP=${MYIP:-46.21.246.216}
 NODE_VERSION=v24.11.0
@@ -15,7 +15,7 @@ log() { echo "[cumulus-id] $*"; }
 TMP=$(mktemp -d)
 
 sudo DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
-sudo DEBIAN_FRONTEND=noninteractive apt-get -qq install -y nginx certbot xz-utils >/dev/null
+sudo DEBIAN_FRONTEND=noninteractive apt-get -qq install -y nginx certbot xz-utils postgresql >/dev/null
 
 # Node (official build, checksum-verified)
 if [ "$(/usr/local/bin/node -v 2>/dev/null || true)" != "$NODE_VERSION" ]; then
@@ -31,6 +31,17 @@ id cumulusid >/dev/null 2>&1 || sudo useradd --system --home-dir /var/lib/cumulu
 sudo install -d -o cumulusid -g cumulusid -m 0700 /var/lib/cumulus-id
 sudo install -d -m 0755 /opt/cumulus-id/releases /var/www/acme
 sudo install -d -m 0700 /etc/cumulus-id
+
+# Postgres on this server for Cumulus://ID's accounts, passkeys and sessions (CUMULUS_STORE=postgres).
+# The service connects over the local Unix socket as its own OS user (peer authentication, Ubuntu's
+# default for local connections), so there is no database password anywhere. Ubuntu's postgresql
+# listens only on localhost; nothing new is reachable from outside.
+sudo systemctl enable --now postgresql >/dev/null 2>&1
+sudo -u postgres psql -qtAc "SELECT 1 FROM pg_roles WHERE rolname = 'cumulusid'" | grep -q 1 \
+  || sudo -u postgres psql -qc "CREATE ROLE cumulusid LOGIN"
+sudo -u postgres psql -qtAc "SELECT 1 FROM pg_database WHERE datname = 'cumulus_id'" | grep -q 1 \
+  || sudo -u postgres psql -qc "CREATE DATABASE cumulus_id OWNER cumulusid"
+log "postgres $(sudo -u postgres psql -qtAc 'SHOW server_version')"
 
 # Code: InfinitumCorp/infinitum-nexus at a pinned commit, only what apps/spectre needs
 REL=/opt/cumulus-id/releases/$SHA
@@ -60,6 +71,11 @@ CUMULUS_ID_HOST=$HOST
 CUMULUS_COOKIE_DOMAIN=$HOST
 SPECTRE_DATA_DIR=/var/lib/cumulus-id
 USE_METATRON=1
+# Cumulus://ID in Postgres on this server (peer authentication over the socket: no password).
+# The first start copies cid.json in and checks every row; cid.json is then kept as the rollback
+# copy (set CUMULUS_STORE=document to go back).
+CUMULUS_STORE=postgres
+CID_DATABASE_URL=postgresql:///cumulus_id?host=/var/run/postgresql&user=cumulusid
 EOF
 sudo chmod 600 /etc/cumulus-id/env
 
@@ -75,8 +91,8 @@ done
 sudo tee /etc/systemd/system/cumulus-id.service >/dev/null <<EOF
 [Unit]
 Description=Cumulus://ID (Russia)
-After=network-online.target
-Wants=network-online.target
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
 
 [Service]
 User=cumulusid
@@ -90,18 +106,44 @@ RestartSec=2
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/cumulus-id
+ReadWritePaths=/var/lib/cumulus-id /run/postgresql
 PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
 EOF
+# Nightly dump of the Cumulus://ID database next to the other data (also on the daily disk snapshots).
+sudo install -d -o cumulusid -g cumulusid -m 0700 /var/lib/cumulus-id/backups
+sudo tee /etc/systemd/system/cumulus-id-backup.service >/dev/null <<'UNIT'
+[Unit]
+Description=Cumulus://ID (Russia) database dump
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=cumulusid
+ExecStart=/bin/sh -c 'pg_dump -h /var/run/postgresql -Fc cumulus_id > /var/lib/cumulus-id/backups/cumulus_id-$(date -u +%%Y%%m%%d).dump && find /var/lib/cumulus-id/backups -name "cumulus_id-*.dump" -mtime +7 -delete'
+UNIT
+sudo tee /etc/systemd/system/cumulus-id-backup.timer >/dev/null <<'UNIT'
+[Unit]
+Description=Nightly Cumulus://ID (Russia) database dump
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
 sudo systemctl daemon-reload
+sudo systemctl enable --now cumulus-id-backup.timer >/dev/null 2>&1
 sudo systemctl enable cumulus-id >/dev/null 2>&1
 sudo systemctl restart cumulus-id
 for _ in $(seq 1 60); do curl -fsS -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null && break; sleep 1; done
 log "local /: $(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/")"
 log "local discovery: $(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/.well-known/openid-configuration")"
+log "storage: $(sudo journalctl -u cumulus-id -n 50 --no-pager -o cat | grep -o 'Cumulus://ID: [^)]*' | tail -1)"
+log "accounts in Postgres: $(sudo -u postgres psql -qtAc 'SELECT count(*) FROM cid_accounts' cumulus_id 2>/dev/null || echo '?')"
 
 # HTTP: ACME challenges only, everything else to HTTPS
 sudo tee /etc/nginx/sites-available/default >/dev/null <<EOF
