@@ -5,7 +5,7 @@
 # Re-runnable; run again to upgrade (bump SHA).
 set -euo pipefail
 # infinitum-nexus commit to run (apps/spectre, the code behind id.cumuluscloud.app).
-SHA=555ae4f1b6a99ef7500524df1abadef688496bd1
+SHA=54402d8168290ac5bc055207cc76ab7cb6b3208b
 HOST=ru-id.cumuluscloud.app
 MYIP=${MYIP:-46.21.246.216}
 NODE_VERSION=v24.11.0
